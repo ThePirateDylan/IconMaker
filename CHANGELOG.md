@@ -1,59 +1,30 @@
 # Changelog
 
-All notable changes to IconMaker will be documented in this file.
+All notable IconMaker changes are documented here.
 
-This project follows a version-based release history. Features listed under upcoming releases are planned and may change before implementation.
-
-## [1.1.0] - Current Development Version
+## [1.3.0] - 2026-10-20
 
 ### Added
-- Automatic creation of the `inputs`, `outputs`, `logs`, and `crashlog` directories.
-- Batch conversion of supported image files into Windows `.ico` files.
-- Support for PNG, JPG, JPEG, WEBP, BMP, GIF, TIF, and TIFF images.
-- Automatic resizing and fitting of images onto a transparent 256 × 256 canvas.
-- Generation of ICO files containing multiple icon sizes: 16, 24, 32, 48, 64, 128, and 256 pixels.
-- Automatic correction of image orientation using EXIF metadata when available.
-- Recursive processing of images inside subdirectories.
-- Preservation of the input folder structure in the output directory.
-- Progress reporting and conversion summaries.
-- Timestamped activity logs for tracking conversion results and errors.
-- Separate crash reports for unexpected program failures.
-- A Windows batch launcher with a numbered menu for conversion, folder access, dependency installation, system checks, and help.
+- Graphical interface for choosing input/output folders or individual image files, conversion sizes, image fitting, output naming, and conflict behavior.
+- Persistent GUI settings saved to `settings.json`.
+- Configurable ICO sizes: 16, 24, 32, 48, 64, 128, and 256 pixels.
+- Three image-fit behaviors: contain on transparent canvas, stretch to square, and center-crop cover.
+- Output naming modes for original names, `_icon` suffixes, and custom prefixes.
+- Output-conflict handling with numbered suffixes, skip, and overwrite options.
+- Per-file progress and a final summary showing successful, skipped, and failed conversions.
+- Per-file exception handling so a failed image does not stop the remaining batch.
+- Atomic output writing to reduce the chance of leaving a partially written ICO file.
+- A Settings menu with Diagnostic Output, Open Logs Folder, Open Crash Reports Folder, and Open Settings File options.
+- Diagnostic Output window displaying runtime details and recent activity logs/crash reports without opening a command window.
+- Visible error dialog and crash report path if GUI startup fails in a windowed executable.
+- GitHub Actions workflow to build a one-file, windowed Windows executable and attach it to tagged GitHub Releases.
 
 ### Improved
-- Image processing and output organization.
-- Error reporting and troubleshooting information.
-- Windows command-line usability through the launcher menu.
+- Duplicate output names no longer silently overwrite files under the default conflict policy.
+- Activity logs include file-specific error messages and locations.
+- Existing recursive folder processing, EXIF orientation correction, supported image formats, and multi-size ICO output are retained.
+- End users can run the standalone `IconMaker.exe` without a `.bat` launcher or separate Python installation.
 
-### Requirements
-- Windows.
-- Python installed and accessible through the `py` launcher.
-- Pillow, which the launcher can help install.
-
-### Known Limitations
-- Files with the same name but different extensions in the same folder may target the same output filename.
-- A graphical user interface is not currently included.
-- Python and Pillow must be available for the script to run.
-
----
-
-## Upcoming
-
-The following improvements are planned for future versions and are not yet guaranteed.
-
-### Planned Features
-- Graphical user interface for easier conversion management.
-- Image previews before conversion.
-- Drag-and-drop image and folder support.
-- Configurable icon dimensions, padding, and image-fitting options.
-- Improved handling of duplicate filenames and output conflicts.
-- More detailed per-file error reporting and retry options.
-- Conversion history and additional batch-processing controls.
-- A standalone Windows executable that does not require a separate Python installation.
-- Optional update notifications for new releases.
-
----
-
-## Version History
-
-- **1.1.0** — Development version featuring batch conversion, multi-size ICO generation, logging, crash reports, and a Windows launcher.
+### Notes
+- The Windows executable is built on a Windows runner by GitHub Actions; this source package does not contain a prebuilt `.exe`.
+- Animated image formats are converted as still images; animation is not preserved.
