@@ -59,9 +59,21 @@ jobs:
           if ($exe.Length -lt 1000000) {
             throw "Build failed: IconMaker.exe is unexpectedly small ($($exe.Length) bytes)."
           }
-          & .\dist\IconMaker.exe --self-test
-          if ($LASTEXITCODE -ne 0) {
-            throw "Packaged runtime self-test failed with exit code $LASTEXITCODE."
+          # A --windowed PyInstaller executable may not update PowerShell's
+          # automatic $LASTEXITCODE variable reliably when invoked directly.
+          # Start-Process -Wait -PassThru gives us the actual Windows process exit code.
+          $testProcess = Start-Process -FilePath $exe.FullName -ArgumentList "--self-test" -Wait -PassThru
+          if ($testProcess.ExitCode -ne 0) {
+            Write-Host "::error::Packaged runtime self-test exited with code $($testProcess.ExitCode)."
+            $crashLogs = Get-ChildItem -Path "dist/crashlog" -Filter "IconMaker_crash_*.log" -File -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime -Descending
+            if ($crashLogs) {
+              Write-Host "Most recent packaged self-test diagnostic ($($crashLogs[0].FullName)):"
+              Get-Content -Path $crashLogs[0].FullName -Raw | Write-Host
+            } else {
+              Write-Host "No crash log was written to dist/crashlog."
+            }
+            throw "Packaged runtime self-test failed with exit code $($testProcess.ExitCode)."
           }
           Write-Host "Standalone runtime and GUI self-test passed. EXE size: $($exe.Length) bytes."
 
