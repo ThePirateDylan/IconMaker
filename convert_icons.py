@@ -760,7 +760,6 @@ class IconMakerGUI:
         ttk.Label(header, text=APP_NAME, style="Brand.TLabel").grid(row=0, column=1, sticky="w")
         ttk.Label(header, text=f"Batch image-to-ICO converter  ·  Version {VERSION}", style="Subtitle.TLabel").grid(row=1, column=1, sticky="w", pady=(0, 3))
         ttk.Label(header, text="Made by ThePirateDylan", style="Credit.TLabel").grid(row=2, column=1, sticky="w")
-        ttk.Label(header, text="WINDOWS DESKTOP APP", style="Eyebrow.TLabel").grid(row=0, column=2, sticky="e", padx=(12, 0), pady=(0, 3))
         ttk.Label(header, text="7 ICON SIZES  ·  8 FORMATS", style="VersionBadge.TLabel").grid(row=1, column=2, rowspan=2, sticky="e", padx=(12, 0))
 
         # Main work area: controls on the left, always-visible live preview on the right.
