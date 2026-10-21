@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Optional existing/new tag to attach the EXE to (for example v1.3.0). Leave blank to build an artifact only."
+        description: "Optional existing/new tag to attach the EXE to (for example v1.4.0). Leave blank to build an artifact only."
         required: false
         type: string
   push:
@@ -27,11 +27,14 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install build dependencies
-        run: python -m pip install --upgrade pip Pillow PyInstaller
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip -r requirements.txt PyInstaller
 
       - name: Check Python syntax
         run: python -m py_compile convert_icons.py
+
+      - name: Run automated regression tests
+        run: python -m unittest discover -v
 
       - name: Build one-file windowed executable
         run: >-
@@ -41,8 +44,26 @@ jobs:
           --onefile
           --windowed
           --name IconMaker
+          --icon assets/iconmaker.ico
+          --add-data "assets/iconmaker.ico;assets"
           --collect-all PIL
           convert_icons.py
+
+      - name: Verify standalone EXE, bundled runtime, and GUI construction
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/IconMaker.exe")) {
+            throw "Build failed: dist/IconMaker.exe was not created."
+          }
+          $exe = Get-Item "dist/IconMaker.exe"
+          if ($exe.Length -lt 1000000) {
+            throw "Build failed: IconMaker.exe is unexpectedly small ($($exe.Length) bytes)."
+          }
+          & .\dist\IconMaker.exe --self-test
+          if ($LASTEXITCODE -ne 0) {
+            throw "Packaged runtime self-test failed with exit code $LASTEXITCODE."
+          }
+          Write-Host "Standalone runtime and GUI self-test passed. EXE size: $($exe.Length) bytes."
 
       - name: Upload EXE as a workflow artifact
         uses: actions/upload-artifact@v4

@@ -1,14 +1,15 @@
 
 @echo off
 setlocal EnableExtensions
-title IconMaker 1.1.0
+title IconMaker 1.4.0
 cd /d "%~dp0"
 
 :menu
 cls
 echo ====================================================
-echo                 IconMaker 1.1.0
+echo                 IconMaker 1.4.0
 echo             Image-to-ICO Converter
+echo             Made by The Pirate Dylan
 echo ====================================================
 echo.
 echo   CONVERSION

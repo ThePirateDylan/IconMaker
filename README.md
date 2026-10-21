@@ -2,23 +2,28 @@
 
 **A Windows utility for converting images into multi-size Windows icon (`.ico`) files.**
 
-IconMaker 1.3.0 includes a graphical interface, persistent conversion settings, safer output naming, per-file error reporting, clear conversion summaries, and in-app diagnostic output.
+IconMaker 1.4.0 is a hobby project by The Pirate Dylan. It provides a graphical interface, folder and individual-image workflows, persistent settings, conversion progress and cancellation, image preview, selectable themes, diagnostic logs, and an optional GitHub update checker.
 
 ## Download for Windows
 
 For normal use, download **`IconMaker.exe`** from the [latest GitHub Release](https://github.com/ThePirateDylan/IconMaker/releases/latest).
 
-- No Python installation is required when using the standalone executable.
-- No `.bat` launcher or separate command window is required.
-- Open the app's **Settings → Diagnostic Output…** menu to view runtime details, recent activity logs, and crash reports inside IconMaker.
+- The standalone executable bundles Python and Pillow; no separate Python or Pillow installation is required.
+- No `.bat` launcher or separate command window is required for normal use. `Run_IconMaker.bat` is an optional source/developer launcher; running the Python source directly requires Python and Pillow.
+- The application checks for a newer stable GitHub release on startup by default. You can change this in **Settings → Check for updates on startup** or check manually from **Settings → Check for updates now…**.
+- Update checking is done in the background. If GitHub is unavailable, IconMaker continues to work and reports a problem only when you start a manual check.
+- Open **Settings → Diagnostic Output…** to view runtime details, recent activity logs, and crash reports inside IconMaker.
 
-Run `IconMaker.exe` from a folder where your Windows account can write files, such as a folder under Documents or Downloads. IconMaker creates `inputs`, `outputs`, `logs`, `crashlog`, and `settings.json` beside the executable as needed. Avoid placing it in a protected directory such as `C:\Program Files` unless you have configured writable data locations.
+Run `IconMaker.exe` from a folder where your Windows account can write files, such as a folder under Documents or Downloads. IconMaker creates `inputs`, `outputs`, `logs`, `crashlog`, and `settings.json` beside the executable as needed. Avoid protected folders such as `C:\Program Files` unless you have configured writable data locations.
 
 ## Features
 
 - Convert an entire folder (including subfolders) or select individual images.
+- Preview selected images and inspect dimensions, format, transparency, and file size before conversion.
+- Manage a selected-image batch by adding images, removing selected items, or clearing the selection.
+- Scan the chosen source to count supported images before conversion.
 - Supports PNG, JPG, JPEG, WEBP, BMP, GIF, TIF, and TIFF.
-- Select which icon sizes to include: 16, 24, 32, 48, 64, 128, and 256 pixels.
+- Select ICO sizes: 16, 24, 32, 48, 64, 128, and 256 pixels.
 - Choose how the image fits on the 256 × 256 canvas:
   - **Contain (transparent padding):** preserves proportions and centers the image on a transparent canvas.
   - **Stretch to square:** fills the square and may distort the source image.
@@ -27,10 +32,14 @@ Run `IconMaker.exe` from a folder where your Windows account can write files, su
 - Configure output-conflict behavior: add a numbered suffix, skip existing output, or overwrite existing output.
 - Recursively processes subfolders and preserves their relative structure when converting a folder.
 - Corrects image orientation using EXIF metadata when available.
-- Continues after individual image errors and reports the affected file and error.
-- Displays progress, success/skip/failure counts, and the activity-log location.
-- Saves settings to `settings.json` between runs.
-- Provides diagnostic information from the **Settings** menu without opening a console window.
+- Shows the current file, completed-file count, percentage progress, and success/skip/failure totals.
+- Cancels safely between files; a file already being converted is allowed to finish so its output is not left partially written.
+- Continues after individual image errors and identifies failed files and error reasons.
+- Shows the final totals and elapsed time, with direct access to output and diagnostic logs.
+- Offers System, Light, and Dark themes.
+- Includes an About window with version, GitHub links, and the credit **Made by The Pirate Dylan**.
+- Optional update checking against the latest stable GitHub release.
+- Saves conversion and application preferences to `settings.json` between runs.
 
 ## Quick Start
 
@@ -38,9 +47,10 @@ Run `IconMaker.exe` from a folder where your Windows account can write files, su
 2. Save it in a writable folder.
 3. Double-click `IconMaker.exe`.
 4. Choose an input folder or select individual image files.
-5. Choose an output folder and preferred conversion settings.
-6. Click **Start conversion**.
-7. Review the conversion summary. For troubleshooting, open **Settings → Diagnostic Output…**.
+5. Optionally select **Scan source** to count supported images, or use **Manage selection…** to preview and remove individual files.
+6. Choose an output folder and conversion settings.
+7. Click **Start conversion**. Use **Cancel conversion** to stop after the current image finishes.
+8. Review the final summary. Open **Settings → Diagnostic Output…** or the Logs folder for troubleshooting.
 
 ## Settings
 
@@ -66,6 +76,10 @@ Select one or more sizes. The default includes 16, 24, 32, 48, 64, 128, and 256 
 - **Skip existing output:** preserves the existing output and marks the source as skipped.
 - **Overwrite existing output:** explicitly replaces an existing output. Use this option carefully.
 
+### Themes and updates
+
+Open **Settings → Theme** to select System, Light, or Dark. The choice is saved between launches. **Settings → Check for updates on startup** controls automatic update checking; **Settings → Check for updates now…** performs a manual check. IconMaker only opens a GitHub release page after asking you; it does not silently replace the running executable.
+
 ## Diagnostic Output
 
 Open **Settings → Diagnostic Output…** inside the application to view:
@@ -82,27 +96,34 @@ You can also open **Settings → Open Logs Folder** or **Settings → Open Crash
 The repository includes a GitHub Actions workflow at `.github/workflows/build-windows-exe.yml`. It builds a one-file, windowed Windows executable on a GitHub-hosted Windows runner.
 
 - **Manual build:** open the repository's **Actions** tab, select **Build IconMaker Windows EXE**, and choose **Run workflow**. Download `IconMaker-Windows-EXE` from the completed workflow run's Artifacts section.
-- **Release build:** push a version tag such as `v1.3.0`. The workflow builds `IconMaker.exe` and attaches it to the matching GitHub Release.
+- **Release build:** push a version tag such as `v1.4.0`. The workflow runs syntax checks and automated tests, builds `IconMaker.exe`, then runs `IconMaker.exe --self-test` to verify the packaged Pillow and Tkinter runtime before publishing the artifact.
+- **Local source run:** install Python 3.10 or newer, install dependencies with `python -m pip install -r requirements.txt`, then run `python convert_icons.py`.
+- **Local tests:** run `python -m unittest discover -v`.
 
-The packaged application is built with PyInstaller and Pillow. The application source and MIT license remain available in this repository.
+The packaged executable is built with PyInstaller. Python and Pillow are not required to be installed on a user's Windows PC when using the released executable.
 
 ## Folder and File Reference
 
-- `convert_icons.py` — conversion engine and GUI source.
+- `convert_icons.py` — conversion engine, GUI, updater, and application logic.
+- `Run_IconMaker.bat` — optional source/developer launcher (not needed by users of `IconMaker.exe`).
+- `assets/iconmaker.ico` — Windows application and window icon.
+- `assets/iconmaker.png` — editable PNG source for the app icon.
+- `tests/` — automated regression tests.
 - `inputs/` — default input folder created at runtime if needed.
 - `outputs/` — default output folder created at runtime if needed.
 - `logs/` — timestamped activity logs.
 - `crashlog/` — unexpected application startup/crash reports.
-- `settings.json` — saved GUI options, created at runtime.
+- `settings.json` — saved preferences, created at runtime.
 - `CHANGELOG.md` — version history.
+- `DEVELOPMENT_CHECKLIST.md` — implementation and verification checklist for 1.4.0.
 - `LICENSE` — MIT License.
-- `.github/workflows/build-windows-exe.yml` — automated Windows executable build/release workflow.
+- `.github/workflows/build-windows-exe.yml` — automated Windows executable build, test, and release workflow.
 
 ## Troubleshooting
 
 ### IconMaker won't start
 
-If the GUI cannot start, the app attempts to save a crash report and display an error dialog. Open `crashlog` beside the executable or use **Settings → Diagnostic Output…** after starting the application.
+If the GUI cannot start, the app attempts to save a crash report and display an error dialog. Open `crashlog` beside the executable or use **Settings → Diagnostic Output…** after starting the application. If the packaged executable reports a missing bundled dependency, download a fresh copy from the [latest release](https://github.com/ThePirateDylan/IconMaker/releases/latest); end users should not need to install Pillow separately.
 
 ### Some images fail
 
