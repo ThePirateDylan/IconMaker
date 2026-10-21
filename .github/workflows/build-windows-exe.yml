@@ -61,6 +61,7 @@ jobs:
             "--windowed",
             "--name", "IconMaker",
             "--icon=assets/iconmaker.ico",
+            "--version-file=version_info.txt",
             "--add-data", "assets/iconmaker.ico;assets",
             "--add-data", "assets/iconmaker.png;assets",
             "--collect-all", "PIL",
@@ -69,42 +70,16 @@ jobs:
           & python @pyInstallerArgs
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed (exit code $LASTEXITCODE)." }
           if (-not (Test-Path "dist/IconMaker.exe")) { throw "PyInstaller reported success but dist/IconMaker.exe was not created." }
-          Write-Host "Built dist/IconMaker.exe ($((Get-Item 'dist/IconMaker.exe').Length) bytes)."
-
-      - name: Apply IconMaker icon and Windows file metadata
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $exePath = (Resolve-Path "dist/IconMaker.exe").Path
-          $iconPath = (Resolve-Path "assets/iconmaker.ico").Path
-          $rceditPath = Join-Path $env:RUNNER_TEMP "rcedit-x64.exe"
-          $rceditUrl = "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe"
-          Invoke-WebRequest -Uri $rceditUrl -OutFile $rceditPath -Headers @{ "User-Agent" = "IconMaker-GitHub-Actions" }
-          if (-not (Test-Path $rceditPath)) { throw "Could not download the Windows resource editor from $rceditUrl." }
-
-          # Verify the fixed rcedit release so the build never executes an unexpected binary.
-          $expectedHash = "3E7801DB1A5EDBEC91B49A24A094AAD776CB4515488EA5A4CA2289C400EADE2A"
-          $actualHash = (Get-FileHash -Path $rceditPath -Algorithm SHA256).Hash
-          if ($actualHash -ne $expectedHash) { throw "rcedit SHA-256 did not match the expected v2.0.0 binary. Actual: $actualHash" }
-
-          $rceditArgs = @(
-            $exePath,
-            "--set-icon", $iconPath,
-            "--set-file-version", "1.4.0.0",
-            "--set-product-version", "1.4.0.0",
-            "--set-version-string", "CompanyName", "The Pirate Dylan",
-            "--set-version-string", "ProductName", "IconMaker",
-            "--set-version-string", "FileDescription", "IconMaker - Batch image-to-ICO converter"
-          )
-          & $rceditPath @rceditArgs
-          $rceditExitCode = $LASTEXITCODE
-          if ($rceditExitCode -ne 0) { throw "rcedit failed to apply the IconMaker icon/metadata (exit code $rceditExitCode)." }
-          Write-Host "Applied assets/iconmaker.ico and IconMaker Windows file metadata."
+          $builtExe = Get-Item "dist/IconMaker.exe"
+          Write-Host "Built dist/IconMaker.exe ($($builtExe.Length) bytes)."
+          if ($builtExe.Length -lt 1000000) {
+            throw "PyInstaller output is unexpectedly small ($($builtExe.Length) bytes) before any post-build editing. Check the build log and packaged dependencies."
+          }
 
       - name: Verify embedded Windows icon resources
         shell: pwsh
         run: |
-          python -c "import pefile; pe=pefile.PE(r'dist/IconMaker.exe'); ids={entry.id for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries}; assert 14 in ids and 3 in ids, f'Expected RT_GROUP_ICON (14) and RT_ICON (3) resources, found {sorted(ids)}'; print('Verified Windows icon group and icon image resources.')"
+          python -c "import pefile; pe=pefile.PE(r'dist/IconMaker.exe'); ids={entry.id for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries}; assert 14 in ids and 3 in ids, f'Expected RT_GROUP_ICON (14) and RT_ICON (3) resources, found {sorted(ids)}'; print('Verified PyInstaller-embedded Windows icon group and icon image resources.')"
           if ($LASTEXITCODE -ne 0) { throw "Icon resource verification failed (exit code $LASTEXITCODE)." }
 
       - name: Verify standalone EXE and packaged GUI construction
