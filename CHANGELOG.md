@@ -5,10 +5,12 @@ All notable IconMaker changes are documented here.
 ## [1.4.0] - Unreleased
 
 ### UI redesign and Windows icon reliability
+- Selected the **Modern Windows (Option A)** visual direction, with a light Windows-inspired palette, blue accents, a branded header, live batch-preview panel, and clearer separation between settings, actions, progress, and logs.
+- Standardized the creator credit to the exact GitHub handle **ThePirateDylan** (no spaces) throughout the GUI and project documentation.
 - Reworked the main window into a branded header, source/destination card, side-by-side conversion settings and batch overview, prominent action bar, progress card, and activity log.
 - Added a more deliberate type scale, spacing, card borders, and themed primary/cancel buttons across Light, Dark, and System modes.
 - Added the IconMaker PNG to the one-file bundle so the header and Tk window use the custom artwork.
-- Added a post-build Windows resource-editing step to explicitly apply `assets/iconmaker.ico` to the generated EXE and set version/file description metadata.
+- Embedded `assets/iconmaker.ico` and Windows version/file-description metadata directly through PyInstaller, avoiding post-build PE edits that may damage the one-file runtime archive.
 
 ### Added
 - Cancellation control that stops between files and lets the current file finish safely.
@@ -17,7 +19,7 @@ All notable IconMaker changes are documented here.
 - Selected-image manager with image preview, dimensions, format, transparency, file size, and remove/clear controls.
 - Source scanning to count supported images before conversion.
 - System, Light, and Dark theme choices with saved preference.
-- About window with version, GitHub links, issue reporting, and "Made by The Pirate Dylan" credit.
+- About window with version, GitHub links, issue reporting, and "Made by ThePirateDylan" credit.
 - Optional background check for newer stable GitHub releases at startup and manual update-check menu action.
 - Custom IconMaker application icon used by the Windows executable, title bar, and main-window header.
 - Automated regression tests for conversion, cancellation, conflict handling, nested folders, errors, and numeric version comparison.

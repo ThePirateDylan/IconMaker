@@ -71,6 +71,21 @@ class IconMakerCoreTests(unittest.TestCase):
         self.assertIn("assets/iconmaker.png;assets", workflow)
         self.assertTrue((project_root / "assets" / "iconmaker.png").is_file())
 
+    def test_modern_windows_ui_and_creator_handle_are_consistent(self):
+        project_root = Path(app.__file__).resolve().parent
+        source = (project_root / "convert_icons.py").read_text(encoding="utf-8")
+        self.assertIn("Batch preview", source)
+        self.assertIn("Conversion settings", source)
+        self.assertIn("Made by ThePirateDylan", source)
+        self.assertGreaterEqual(source.count("Made by ThePirateDylan"), 2)
+        self.assertNotIn("Made by The Pirate Dylan", source)
+
+        # Keep the exact GitHub handle in human-facing project files as well.
+        for relative in ("README.md", "CHANGELOG.md", "Run_IconMaker.bat", "version_info.txt", "LICENSE"):
+            text = (project_root / relative).read_text(encoding="utf-8")
+            self.assertNotIn("The Pirate Dylan", text, relative)
+        self.assertIn("ThePirateDylan", (project_root / "README.md").read_text(encoding="utf-8"))
+
     def test_latest_release_metadata_is_parsed_and_release_url_validated(self):
         class FakeResponse:
             def __init__(self, payload):

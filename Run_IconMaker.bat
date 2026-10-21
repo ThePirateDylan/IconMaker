@@ -9,7 +9,7 @@ cls
 echo ====================================================
 echo                 IconMaker 1.4.0
 echo             Image-to-ICO Converter
-echo             Made by The Pirate Dylan
+echo             Made by ThePirateDylan
 echo ====================================================
 echo.
 echo   CONVERSION

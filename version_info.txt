@@ -17,11 +17,11 @@ VSVersionInfo(
       StringTable(
         '040904B0',
         [
-          StringStruct('CompanyName', 'The Pirate Dylan'),
+          StringStruct('CompanyName', 'ThePirateDylan'),
           StringStruct('FileDescription', 'IconMaker - Batch image-to-ICO converter'),
           StringStruct('FileVersion', '1.4.0.0'),
           StringStruct('InternalName', 'IconMaker'),
-          StringStruct('LegalCopyright', 'Copyright (c) The Pirate Dylan'),
+          StringStruct('LegalCopyright', 'Copyright (c) ThePirateDylan'),
           StringStruct('OriginalFilename', 'IconMaker.exe'),
           StringStruct('ProductName', 'IconMaker'),
           StringStruct('ProductVersion', '1.4.0.0')
