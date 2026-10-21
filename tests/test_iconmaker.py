@@ -58,6 +58,14 @@ class IconMakerCoreTests(unittest.TestCase):
             expected = {(size, size) for size in app.AVAILABLE_ICON_SIZES}
             self.assertTrue(expected.issubset(icon.ico.sizes()))
 
+    def test_windows_build_workflow_explicitly_applies_custom_icon(self):
+        project_root = Path(app.__file__).resolve().parent
+        workflow = (project_root / ".github" / "workflows" / "build-windows-exe.yml").read_text(encoding="utf-8")
+        self.assertIn("--icon=assets/iconmaker.ico", workflow)
+        self.assertIn("--set-icon $iconPath", workflow)
+        self.assertIn("assets/iconmaker.png;assets", workflow)
+        self.assertTrue((project_root / "assets" / "iconmaker.png").is_file())
+
     def test_latest_release_metadata_is_parsed_and_release_url_validated(self):
         class FakeResponse:
             def __init__(self, payload):

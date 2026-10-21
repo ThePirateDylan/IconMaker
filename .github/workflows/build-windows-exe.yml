@@ -44,10 +44,34 @@ jobs:
           --onefile
           --windowed
           --name IconMaker
-          --icon assets/iconmaker.ico
+          --icon=assets/iconmaker.ico
           --add-data "assets/iconmaker.ico;assets"
+          --add-data "assets/iconmaker.png;assets"
           --collect-all PIL
           convert_icons.py
+
+      # PyInstaller embeds an icon itself. This extra resource-editing step
+      # explicitly replaces the PE icon group as a second safeguard so the
+      # downloaded EXE does not fall back to a Python/default icon.
+      - name: Apply IconMaker icon and Windows file metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exePath = (Resolve-Path "dist/IconMaker.exe").Path
+          $iconPath = (Resolve-Path "assets/iconmaker.ico").Path
+          $rceditPath = Join-Path $env:RUNNER_TEMP "rcedit-x64.exe"
+          Invoke-WebRequest `
+            -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" `
+            -OutFile $rceditPath `
+            -Headers @{ "User-Agent" = "IconMaker-GitHub-Actions" }
+          if (-not (Test-Path $rceditPath)) {
+            throw "Could not download the Windows resource editor."
+          }
+          & $rceditPath $exePath --set-icon $iconPath --set-file-version "1.4.0" --set-product-version "1.4.0" --set-version-string "CompanyName" "The Pirate Dylan" --set-version-string "ProductName" "IconMaker" --set-version-string "FileDescription" "IconMaker - Batch image-to-ICO converter"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not embed assets/iconmaker.ico into IconMaker.exe (rcedit exit code $LASTEXITCODE)."
+          }
+          Write-Host "IconMaker.ico was written into the EXE Windows resources."
 
       - name: Verify standalone EXE, bundled runtime, and GUI construction
         shell: pwsh

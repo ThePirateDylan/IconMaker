@@ -4,6 +4,12 @@ All notable IconMaker changes are documented here.
 
 ## [1.4.0] - Unreleased
 
+### UI redesign and Windows icon reliability
+- Reworked the main window into a branded header, source/destination card, side-by-side conversion settings and batch overview, prominent action bar, progress card, and activity log.
+- Added a more deliberate type scale, spacing, card borders, and themed primary/cancel buttons across Light, Dark, and System modes.
+- Added the IconMaker PNG to the one-file bundle so the header and Tk window use the custom artwork.
+- Added a post-build Windows resource-editing step to explicitly apply `assets/iconmaker.ico` to the generated EXE and set version/file description metadata.
+
 ### Added
 - Cancellation control that stops between files and lets the current file finish safely.
 - Detailed completed-file progress and percentage reporting.
@@ -13,7 +19,7 @@ All notable IconMaker changes are documented here.
 - System, Light, and Dark theme choices with saved preference.
 - About window with version, GitHub links, issue reporting, and "Made by The Pirate Dylan" credit.
 - Optional background check for newer stable GitHub releases at startup and manual update-check menu action.
-- Custom IconMaker application icon used by the Windows executable and app window.
+- Custom IconMaker application icon used by the Windows executable, title bar, and main-window header.
 - Automated regression tests for conversion, cancellation, conflict handling, nested folders, errors, and numeric version comparison.
 - A packaged executable dependency smoke test in the GitHub Actions workflow.
 

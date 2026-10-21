@@ -2,7 +2,7 @@
 
 **A Windows utility for converting images into multi-size Windows icon (`.ico`) files.**
 
-IconMaker 1.4.0 is a hobby project by The Pirate Dylan. It provides a graphical interface, folder and individual-image workflows, persistent settings, conversion progress and cancellation, image preview, selectable themes, diagnostic logs, and an optional GitHub update checker.
+IconMaker 1.4.0 is a hobby project by The Pirate Dylan. Its redesigned interface features a branded header, source/destination card, side-by-side conversion settings and live batch overview, prominent action buttons, progress card, and activity log. It also provides folder and individual-image workflows, persistent settings, conversion progress and cancellation, image preview, selectable themes, diagnostic logs, and an optional GitHub update checker.
 
 ## Download for Windows
 
@@ -96,7 +96,7 @@ You can also open **Settings → Open Logs Folder** or **Settings → Open Crash
 The repository includes a GitHub Actions workflow at `.github/workflows/build-windows-exe.yml`. It builds a one-file, windowed Windows executable on a GitHub-hosted Windows runner.
 
 - **Manual build:** open the repository's **Actions** tab, select **Build IconMaker Windows EXE**, and choose **Run workflow**. Download `IconMaker-Windows-EXE` from the completed workflow run's Artifacts section.
-- **Release build:** push a version tag such as `v1.4.0`. The workflow runs syntax checks and automated tests, builds `IconMaker.exe`, then runs `IconMaker.exe --self-test` to verify the packaged Pillow and Tkinter runtime before publishing the artifact.
+- **Release build:** push a version tag such as `v1.4.0`. The workflow runs syntax checks and automated tests, builds `IconMaker.exe`, explicitly writes the IconMaker ICO and Windows version metadata into the executable resources, then runs `IconMaker.exe --self-test` to verify the packaged Pillow and Tkinter runtime before publishing the artifact.
 - **Local source run:** install Python 3.10 or newer, install dependencies with `python -m pip install -r requirements.txt`, then run `python convert_icons.py`.
 - **Local tests:** run `python -m unittest discover -v`.
 
@@ -106,7 +106,7 @@ The packaged executable is built with PyInstaller. Python and Pillow are not req
 
 - `convert_icons.py` — conversion engine, GUI, updater, and application logic.
 - `Run_IconMaker.bat` — optional source/developer launcher (not needed by users of `IconMaker.exe`).
-- `assets/iconmaker.ico` — Windows application and window icon.
+- `assets/iconmaker.ico` — Windows executable icon and Tk window icon; the build reapplies it after PyInstaller to avoid retaining the default Python-style resource.
 - `assets/iconmaker.png` — editable PNG source for the app icon.
 - `tests/` — automated regression tests.
 - `inputs/` — default input folder created at runtime if needed.

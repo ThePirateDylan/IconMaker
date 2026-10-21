@@ -531,8 +531,8 @@ class IconMakerGUI:
         self.ttk = ttk
         self.root = root
         self.root.title(f"{APP_NAME} {VERSION}")
-        self.root.geometry("940x720")
-        self.root.minsize(820, 620)
+        self.root.geometry("1060x780")
+        self.root.minsize(900, 660)
         self.events: queue.Queue[tuple[str, str]] = queue.Queue()
         self.worker: threading.Thread | None = None
         self.scan_worker: threading.Thread | None = None
@@ -561,98 +561,146 @@ class IconMakerGUI:
         self.progress_var = tk.DoubleVar(value=0)
         self.progress_detail_var = tk.StringVar(value="0 of 0 — 0%")
         self.selection_scan_var = tk.StringVar(value="")
+        self.mode_summary_var = tk.StringVar(value="Folder + subfolders")
+        self.scan_summary_var = tk.StringVar(value="Not scanned yet")
+        self.size_summary_var = tk.StringVar(value="ICO · 7 sizes")
         self.style = ttk.Style(self.root)
         self.apply_theme()
+        # Set both Windows' native ICO resource and Tk's image icon. The ICO is
+        # used for Windows title-bar/window resources; the PNG is also shown in
+        # the redesigned header so the app branding is unmistakable.
         try:
             if APP_ICON_ICO.is_file():
-                self.root.iconbitmap(str(APP_ICON_ICO))
-            elif APP_ICON_PNG.is_file():
-                self._app_icon_photo = tk.PhotoImage(file=str(APP_ICON_PNG))
-                self.root.iconphoto(True, self._app_icon_photo)
+                self.root.iconbitmap(default=str(APP_ICON_ICO))
         except Exception:
             pass
+        try:
+            if APP_ICON_PNG.is_file():
+                source_icon = tk.PhotoImage(file=str(APP_ICON_PNG))
+                factor = max(1, (max(source_icon.width(), source_icon.height()) + 63) // 64)
+                self._app_icon_photo = source_icon.subsample(factor, factor)
+                self.root.iconphoto(True, self._app_icon_photo)
+        except Exception:
+            self._app_icon_photo = None
 
         self._build_ui()
+        for variable in [*self.size_vars.values(), self.fit_var, self.naming_var, self.prefix_var, self.conflict_var]:
+            variable.trace_add("write", lambda *_args: self._refresh_overview())
+        self._refresh_overview()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.after(100, self.poll_events)
         if self.check_updates_var.get():
             self.root.after(1200, lambda: self.check_for_updates(manual=False))
 
     def apply_theme(self):
-        """Apply a readable light, dark, or platform-default ttk theme."""
+        """Apply a consistent, modern card-based visual system in all themes."""
         requested = self.theme_var.get() if hasattr(self, "theme_var") else "System"
-        bg, fg, select_bg = "#f3f5f8", "#202124", "#cfe3ff"
+        resolved = requested
+        if requested == "System":
+            # Follow the Windows application theme when it can be detected.
+            resolved = "Light"
+            if os.name == "nt":
+                try:
+                    import winreg
+                    key_path = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+                        apps_use_light_theme = int(winreg.QueryValueEx(key, "AppsUseLightTheme")[0])
+                    resolved = "Light" if apps_use_light_theme else "Dark"
+                except (OSError, ImportError, ValueError):
+                    resolved = "Light"
+
+        if resolved == "Dark":
+            colors = {
+                "bg": "#0b1220", "panel": "#111c2e", "panel_alt": "#17253a",
+                "text": "#edf3fc", "muted": "#9aacc5", "accent": "#2385f5",
+                "accent_hover": "#3996ff", "accent_text": "#ffffff",
+                "field": "#0c1727", "border": "#2b3c55", "select": "#294a70",
+                "success": "#36c995", "danger": "#e26d78", "trough": "#25334a",
+            }
+        else:
+            colors = {
+                "bg": "#f1f5fb", "panel": "#ffffff", "panel_alt": "#f6f9fe",
+                "text": "#18263b", "muted": "#61718a", "accent": "#1769e0",
+                "accent_hover": "#0d58c7", "accent_text": "#ffffff",
+                "field": "#fbfdff", "border": "#d7e1ef", "select": "#dceaff",
+                "success": "#13845f", "danger": "#c83d4b", "trough": "#e0e8f3",
+            }
+        self.palette = colors
         try:
-            if requested == "System":
-                names = self.style.theme_names()
-                target = "vista" if os.name == "nt" and "vista" in names else ("aqua" if sys.platform == "darwin" and "aqua" in names else "clam")
-                self.style.theme_use(target)
-                bg = str(self.root.cget("bg"))
-                fg, select_bg = "SystemButtonText", "#316ac5"
-                self.text_colors = ("white", "black", select_bg)
-                return
             self.style.theme_use("clam")
-            if requested == "Dark":
-                bg, panel, fg, field_bg, field_fg = "#202124", "#292a2d", "#f1f3f4", "#303134", "#f1f3f4"
-                select_bg, border = "#375a7f", "#55585c"
-            else:
-                bg, panel, fg, field_bg, field_fg = "#f3f5f8", "#ffffff", "#202124", "#ffffff", "#202124"
-                select_bg, border = "#cfe3ff", "#c6cbd2"
-            self.root.configure(background=bg)
-            self.style.configure("TFrame", background=bg)
-            self.style.configure("TLabelframe", background=bg, bordercolor=border)
-            self.style.configure("TLabelframe.Label", background=bg, foreground=fg)
-            self.style.configure("TLabel", background=bg, foreground=fg)
-            self.style.configure("TButton", background=panel, foreground=fg, bordercolor=border, focusthickness=2, focuscolor=select_bg, padding=(8, 4))
-            self.style.map("TButton", background=[("active", select_bg), ("disabled", bg)], foreground=[("disabled", "#888888")])
-            self.style.configure("TEntry", fieldbackground=field_bg, foreground=field_fg, insertcolor=field_fg)
-            self.style.configure("TCombobox", fieldbackground=field_bg, foreground=field_fg, background=panel, arrowcolor=fg)
-            self.style.map("TCombobox", fieldbackground=[("readonly", field_bg)], foreground=[("readonly", field_fg)])
-            self.style.configure("TCheckbutton", background=bg, foreground=fg)
-            self.style.map("TCheckbutton", background=[("active", bg)], foreground=[("disabled", "#888888")])
-            self.style.configure("Horizontal.TProgressbar", background="#2188ff", troughcolor=panel, bordercolor=border)
-            self.text_colors = (field_bg, field_fg, select_bg)
         except Exception:
-            self.text_colors = ("white", "black", "#316ac5")
+            pass
+        self.root.configure(background=colors["bg"])
+
+        style = self.style
+        style.configure("TFrame", background=colors["bg"])
+        style.configure("App.TFrame", background=colors["bg"])
+        style.configure("Header.TFrame", background=colors["panel"], borderwidth=1, relief="solid")
+        style.configure("Card.TFrame", background=colors["panel"])
+        style.configure("Header.Icon.TLabel", background=colors["panel"])
+        style.configure("TLabel", background=colors["bg"], foreground=colors["text"], font=("Segoe UI", 9))
+        style.configure("Header.Title.TLabel", background=colors["panel"], foreground=colors["text"], font=("Segoe UI", 24, "bold"))
+        style.configure("Header.Subtitle.TLabel", background=colors["panel"], foreground=colors["muted"], font=("Segoe UI", 10))
+        style.configure("Header.Credit.TLabel", background=colors["panel"], foreground=colors["accent"], font=("Segoe UI", 9, "bold"))
+        style.configure("Header.Version.TLabel", background=colors["panel_alt"], foreground=colors["accent"], font=("Segoe UI", 9, "bold"), padding=(10, 6))
+        style.configure("Section.TLabel", background=colors["panel"], foreground=colors["text"], font=("Segoe UI", 10, "bold"))
+        style.configure("Eyebrow.TLabel", background=colors["panel"], foreground=colors["muted"], font=("Segoe UI", 8, "bold"))
+        style.configure("Muted.TLabel", background=colors["panel"], foreground=colors["muted"], font=("Segoe UI", 9))
+        style.configure("Accent.TLabel", background=colors["panel"], foreground=colors["accent"], font=("Segoe UI", 10, "bold"))
+        style.configure("Status.TLabel", background=colors["panel"], foreground=colors["text"], font=("Segoe UI", 10, "bold"))
+        style.configure("Footer.TLabel", background=colors["bg"], foreground=colors["muted"], font=("Segoe UI", 8))
+        style.configure("Card.TLabelframe", background=colors["panel"], bordercolor=colors["border"], lightcolor=colors["border"], darkcolor=colors["border"], relief="solid", borderwidth=1, padding=12)
+        style.configure("Card.TLabelframe.Label", background=colors["bg"], foreground=colors["muted"], font=("Segoe UI", 9, "bold"))
+        style.configure("TButton", background=colors["panel_alt"], foreground=colors["text"], bordercolor=colors["border"], lightcolor=colors["border"], darkcolor=colors["border"], focusthickness=2, focuscolor=colors["accent"], padding=(10, 7), font=("Segoe UI", 9))
+        style.map("TButton", background=[("active", colors["select"]), ("disabled", colors["panel_alt"])], foreground=[("disabled", colors["muted"])])
+        style.configure("Primary.TButton", background=colors["accent"], foreground=colors["accent_text"], bordercolor=colors["accent"], padding=(16, 9), font=("Segoe UI", 9, "bold"))
+        style.map("Primary.TButton", background=[("active", colors["accent_hover"]), ("disabled", colors["panel_alt"])], foreground=[("disabled", colors["muted"])])
+        style.configure("Danger.TButton", background=colors["panel_alt"], foreground=colors["danger"], bordercolor=colors["border"], padding=(10, 8), font=("Segoe UI", 9, "bold"))
+        style.map("Danger.TButton", background=[("active", colors["select"]), ("disabled", colors["panel_alt"])])
+        style.configure("TEntry", fieldbackground=colors["field"], foreground=colors["text"], insertcolor=colors["text"], bordercolor=colors["border"], lightcolor=colors["border"], darkcolor=colors["border"], padding=(8, 7))
+        style.configure("TCombobox", fieldbackground=colors["field"], foreground=colors["text"], background=colors["panel_alt"], arrowcolor=colors["muted"], bordercolor=colors["border"], lightcolor=colors["border"], darkcolor=colors["border"], padding=(7, 5))
+        style.map("TCombobox", fieldbackground=[("readonly", colors["field"])], foreground=[("readonly", colors["text"])], selectbackground=[("readonly", colors["select"])], selectforeground=[("readonly", colors["text"])])
+        style.configure("TCheckbutton", background=colors["panel"], foreground=colors["text"], font=("Segoe UI", 9), padding=(2, 3))
+        style.map("TCheckbutton", background=[("active", colors["panel"])], foreground=[("disabled", colors["muted"])])
+        style.configure("TRadiobutton", background=colors["panel"], foreground=colors["text"])
+        style.configure("Horizontal.TProgressbar", background=colors["accent"], troughcolor=colors["trough"], bordercolor=colors["trough"], lightcolor=colors["accent"], darkcolor=colors["accent"], thickness=12)
+        style.configure("TSeparator", background=colors["border"])
+        self.text_colors = (colors["field"], colors["text"], colors["select"])
+        self.effective_theme = resolved
 
     def change_theme(self):
+        """Apply the selected theme and refresh widgets that use classic Tk."""
         self.apply_theme()
         if hasattr(self, "log_text"):
-            bg, fg, select_bg = getattr(self, "text_colors", ("white", "black", "#316ac5"))
-            self.log_text.configure(background=bg, foreground=fg, insertbackground=fg, selectbackground=select_bg)
+            bg, fg, select_bg = self.text_colors
+            self.log_text.configure(
+                background=bg, foreground=fg, insertbackground=fg,
+                selectbackground=select_bg, highlightbackground=self.palette["border"],
+                highlightcolor=self.palette["accent"],
+            )
+        if hasattr(self, "preview_canvas"):
+            self.preview_canvas.configure(background=self.palette["panel_alt"])
         if hasattr(self, "menu_widgets"):
-            if self.theme_var.get() == "Dark":
-                menu_colors = {"background": "#292a2d", "foreground": "#f1f3f4", "activebackground": "#375a7f", "activeforeground": "#ffffff"}
-            elif self.theme_var.get() == "Light":
-                menu_colors = {"background": "#ffffff", "foreground": "#202124", "activebackground": "#cfe3ff", "activeforeground": "#202124"}
-            else:
-                menu_colors = getattr(self, "native_menu_options", {})
+            menu_colors = {
+                "background": self.palette["panel"], "foreground": self.palette["text"],
+                "activebackground": self.palette["select"], "activeforeground": self.palette["text"],
+            }
             for menu in self.menu_widgets:
                 try:
                     menu.configure(**menu_colors)
                 except Exception:
                     pass
+        self._refresh_overview()
         self.save_current_settings(quiet=True)
 
     def _build_ui(self):
+        """Build the redesigned card-based main window while keeping existing actions."""
         tk, ttk = self.tk, self.ttk
-        native_menu = tk.Menu(self.root, tearoff=False)
-        try:
-            self.native_menu_options = {
-                key: native_menu.cget(key)
-                for key in ("background", "foreground", "activebackground", "activeforeground")
-            }
-        finally:
-            native_menu.destroy()
-
-        # Keep diagnostic access inside the application; end users should not
-        # need a console window or batch launcher to troubleshoot problems.
-        if self.theme_var.get() == "Dark":
-            menu_options = {"background": "#292a2d", "foreground": "#f1f3f4", "activebackground": "#375a7f", "activeforeground": "#ffffff"}
-        elif self.theme_var.get() == "Light":
-            menu_options = {"background": "#ffffff", "foreground": "#202124", "activebackground": "#cfe3ff", "activeforeground": "#202124"}
-        else:
-            menu_options = {}
+        colors = self.palette
+        menu_options = {
+            "background": colors["panel"], "foreground": colors["text"],
+            "activebackground": colors["select"], "activeforeground": colors["text"],
+        }
         menubar = tk.Menu(self.root, tearoff=False, **menu_options)
         settings_menu = tk.Menu(menubar, tearoff=False, **menu_options)
         settings_menu.add_command(label="Check for updates now…", command=lambda: self.check_for_updates(manual=True))
@@ -675,94 +723,146 @@ class IconMakerGUI:
         self.menu_widgets = [menubar, settings_menu, theme_menu, help_menu]
         self.root.configure(menu=menubar)
 
-        outer = ttk.Frame(self.root, padding=14)
+        outer = ttk.Frame(self.root, padding=(16, 12), style="App.TFrame")
         outer.pack(fill="both", expand=True)
 
-        heading = ttk.Frame(outer)
-        heading.pack(fill="x", pady=(0, 12))
-        ttk.Label(heading, text="IconMaker", font=("Segoe UI", 20, "bold")).pack(anchor="w")
-        ttk.Label(heading, text=f"Batch image-to-ICO converter · Version {VERSION}").pack(anchor="w", pady=(2, 0))
-        ttk.Label(heading, text="Made by The Pirate Dylan").pack(anchor="w", pady=(2, 0))
+        # Branded hero/header.
+        header = ttk.Frame(outer, padding=(12, 9), style="Header.TFrame")
+        header.pack(fill="x", pady=(0, 9))
+        header.columnconfigure(1, weight=1)
+        try:
+            header_icon_source = tk.PhotoImage(file=str(APP_ICON_PNG))
+            factor = max(1, (max(header_icon_source.width(), header_icon_source.height()) + 63) // 64)
+            self.header_icon = header_icon_source.subsample(factor, factor)
+            ttk.Label(header, image=self.header_icon, style="Header.Icon.TLabel").grid(row=0, column=0, rowspan=3, sticky="w", padx=(0, 15))
+        except Exception:
+            ttk.Label(header, text="ICO", style="Header.Version.TLabel").grid(row=0, column=0, rowspan=3, sticky="w", padx=(0, 15))
+        ttk.Label(header, text=APP_NAME, style="Header.Title.TLabel").grid(row=0, column=1, sticky="w")
+        ttk.Label(header, text="Batch image-to-ICO converter", style="Header.Subtitle.TLabel").grid(row=1, column=1, sticky="w", pady=(1, 3))
+        ttk.Label(header, text="Made by The Pirate Dylan", style="Header.Credit.TLabel").grid(row=2, column=1, sticky="w")
+        ttk.Label(header, text=f"VERSION  {VERSION}", style="Header.Version.TLabel").grid(row=0, column=2, rowspan=2, sticky="e", padx=(12, 0))
+        ttk.Label(header, text="WINDOWS DESKTOP UTILITY", style="Eyebrow.TLabel").grid(row=2, column=2, sticky="e", padx=(12, 0))
 
-        folders = ttk.LabelFrame(outer, text="Folders", padding=10)
-        folders.pack(fill="x", pady=(0, 10))
-        ttk.Label(folders, text="Input folder").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
-        ttk.Entry(folders, textvariable=self.input_var).grid(row=0, column=1, sticky="ew", pady=4)
-        ttk.Button(folders, text="Browse folder…", command=self.browse_input).grid(row=0, column=2, padx=(8, 0), pady=4)
-        ttk.Button(folders, text="Select images…", command=self.browse_files).grid(row=0, column=3, padx=(8, 0), pady=4)
-        ttk.Label(folders, text="Output folder").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=4)
-        ttk.Entry(folders, textvariable=self.output_var).grid(row=1, column=1, sticky="ew", pady=4)
-        ttk.Button(folders, text="Browse…", command=self.browse_output).grid(row=1, column=2, padx=(8, 0), pady=4)
-        ttk.Label(folders, textvariable=self.selection_var).grid(row=2, column=1, columnspan=3, sticky="w", pady=(2, 0))
-        ttk.Label(folders, textvariable=self.selection_scan_var).grid(row=3, column=1, columnspan=3, sticky="w", pady=(2, 0))
+        # Clear source and destination card.
+        folders = ttk.LabelFrame(outer, text="  SOURCE & DESTINATION  ", padding=(12, 6), style="Card.TLabelframe")
+        folders.pack(fill="x", pady=(0, 9))
         folders.columnconfigure(1, weight=1)
+        ttk.Label(folders, text="INPUT", style="Eyebrow.TLabel", width=10).grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(folders, textvariable=self.input_var).grid(row=0, column=1, sticky="ew", pady=3)
+        ttk.Button(folders, text="Browse folder…", command=self.browse_input).grid(row=0, column=2, padx=(8, 0), pady=3)
+        ttk.Button(folders, text="Choose images…", command=self.browse_files).grid(row=0, column=3, padx=(8, 0), pady=3)
+        ttk.Label(folders, text="OUTPUT", style="Eyebrow.TLabel", width=10).grid(row=1, column=0, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(folders, textvariable=self.output_var).grid(row=1, column=1, sticky="ew", pady=3)
+        ttk.Button(folders, text="Browse destination…", command=self.browse_output).grid(row=1, column=2, columnspan=2, sticky="e", padx=(8, 0), pady=3)
+        ttk.Separator(folders).grid(row=2, column=0, columnspan=4, sticky="ew", pady=(4, 0))
 
-        settings = ttk.LabelFrame(outer, text="Conversion settings", padding=10)
-        settings.pack(fill="x", pady=(0, 10))
-        sizes_frame = ttk.Frame(settings)
-        sizes_frame.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 8))
-        ttk.Label(sizes_frame, text="ICO sizes:").pack(side="left", padx=(0, 10))
+        # Settings and a compact live overview sit side-by-side instead of
+        # stacking every setting into one long, dated form.
+        middle = ttk.Frame(outer, style="App.TFrame")
+        middle.pack(fill="x", pady=(0, 8))
+        middle.columnconfigure(0, weight=8, uniform="middle")
+        middle.columnconfigure(1, weight=3, uniform="middle")
+
+        settings = ttk.LabelFrame(middle, text="  CONVERSION SETTINGS  ", padding=(14, 10), style="Card.TLabelframe")
+        settings.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        settings.columnconfigure(1, weight=1, uniform="settings-fields")
+        settings.columnconfigure(3, weight=1, uniform="settings-fields")
+        ttk.Label(settings, text="ICO OUTPUT SIZES", style="Eyebrow.TLabel").grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 3))
+        sizes_frame = ttk.Frame(settings, style="Card.TFrame")
+        sizes_frame.grid(row=1, column=0, columnspan=4, sticky="ew", pady=(0, 5))
         for size in AVAILABLE_ICON_SIZES:
-            ttk.Checkbutton(sizes_frame, text=str(size), variable=self.size_vars[size]).pack(side="left", padx=4)
-        ttk.Button(sizes_frame, text="All", command=self.select_all_sizes).pack(side="left", padx=(10, 2))
-        ttk.Button(sizes_frame, text="Default", command=self.default_sizes).pack(side="left", padx=2)
+            ttk.Checkbutton(sizes_frame, text=str(size), variable=self.size_vars[size]).pack(side="left", padx=(0, 6))
+        ttk.Button(sizes_frame, text="All", command=self.select_all_sizes).pack(side="right", padx=(4, 0))
+        ttk.Button(sizes_frame, text="Default", command=self.default_sizes).pack(side="right", padx=(4, 0))
+        ttk.Separator(settings).grid(row=2, column=0, columnspan=4, sticky="ew", pady=(0, 5))
 
-        ttk.Label(settings, text="Image fitting").grid(row=1, column=0, sticky="w", pady=4, padx=(0, 8))
+        ttk.Label(settings, text="Image fitting").grid(row=3, column=0, sticky="w", padx=(0, 7), pady=3)
         ttk.Combobox(settings, textvariable=self.fit_var, state="readonly", values=(
             "Contain (transparent padding)", "Stretch to square", "Cover (center crop)"
-        ), width=31).grid(row=1, column=1, sticky="w", pady=4)
-        ttk.Label(settings, text="Presets the image shape behavior on a 256 × 256 canvas.").grid(row=1, column=2, sticky="w", padx=(12, 0), pady=4)
-
-        ttk.Label(settings, text="Output naming").grid(row=2, column=0, sticky="w", pady=4, padx=(0, 8))
+        ), width=23).grid(row=3, column=1, sticky="ew", pady=3, padx=(0, 12))
+        ttk.Label(settings, text="Output naming").grid(row=3, column=2, sticky="w", padx=(0, 7), pady=3)
         ttk.Combobox(settings, textvariable=self.naming_var, state="readonly", values=(
             "Original filename", "Add _icon suffix", "Custom prefix"
-        ), width=31).grid(row=2, column=1, sticky="w", pady=4)
-        ttk.Label(settings, text="Custom prefix").grid(row=3, column=0, sticky="w", pady=4, padx=(0, 8))
-        ttk.Entry(settings, textvariable=self.prefix_var, width=34).grid(row=3, column=1, sticky="w", pady=4)
-        ttk.Label(settings, text="Used when output naming is set to Custom prefix.").grid(row=3, column=2, sticky="w", padx=(12, 0), pady=4)
-
-        ttk.Label(settings, text="Name conflicts").grid(row=4, column=0, sticky="w", pady=4, padx=(0, 8))
+        ), width=23).grid(row=3, column=3, sticky="ew", pady=3)
+        ttk.Label(settings, text="Custom prefix").grid(row=4, column=0, sticky="w", padx=(0, 7), pady=3)
+        ttk.Entry(settings, textvariable=self.prefix_var).grid(row=4, column=1, sticky="ew", pady=3, padx=(0, 12))
+        ttk.Label(settings, text="Name conflicts").grid(row=4, column=2, sticky="w", padx=(0, 7), pady=3)
         ttk.Combobox(settings, textvariable=self.conflict_var, state="readonly", values=(
             "Add numbered suffix", "Skip existing output", "Overwrite existing output"
-        ), width=31).grid(row=4, column=1, sticky="w", pady=4)
-        ttk.Label(settings, text="Default protects existing files by adding (2), (3), etc.").grid(row=4, column=2, sticky="w", padx=(12, 0), pady=4)
-        settings.columnconfigure(2, weight=1)
+        ), width=23).grid(row=4, column=3, sticky="ew", pady=3)
 
-        actions = ttk.Frame(outer)
+        overview = ttk.LabelFrame(middle, text="  BATCH OVERVIEW  ", padding=(12, 8), style="Card.TLabelframe")
+        overview.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
+        overview.columnconfigure(1, weight=1)
+        ttk.Label(overview, text="WORKFLOW", style="Eyebrow.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10), pady=4)
+        ttk.Label(overview, textvariable=self.mode_summary_var, style="Section.TLabel", wraplength=240).grid(row=0, column=1, sticky="w", pady=4)
+        ttk.Label(overview, text="SOURCE COUNT", style="Eyebrow.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=4)
+        ttk.Label(overview, textvariable=self.scan_summary_var, style="Accent.TLabel", wraplength=240).grid(row=1, column=1, sticky="w", pady=4)
+        ttk.Label(overview, text="ICON OUTPUT", style="Eyebrow.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 10), pady=4)
+        ttk.Label(overview, textvariable=self.size_summary_var, style="Section.TLabel").grid(row=2, column=1, sticky="w", pady=4)
+        ttk.Separator(overview).grid(row=3, column=0, columnspan=2, sticky="ew", pady=(4, 5))
+        ttk.Label(overview, text="INPUTS", style="Eyebrow.TLabel").grid(row=4, column=0, sticky="nw", padx=(0, 10), pady=2)
+        ttk.Label(overview, text="PNG · JPG/JPEG · WEBP\nBMP · GIF · TIF/TIFF", style="Muted.TLabel", justify="left").grid(row=4, column=1, sticky="w", pady=2)
+
+        # Primary actions stand out; secondary utilities are grouped after them.
+        actions = ttk.Frame(outer, style="App.TFrame")
         actions.pack(fill="x", pady=(0, 10))
-        self.start_button = ttk.Button(actions, text="Start conversion", command=self.start_conversion)
+        self.start_button = ttk.Button(actions, text="Start conversion", style="Primary.TButton", command=self.start_conversion)
         self.start_button.pack(side="left")
-        self.cancel_button = ttk.Button(actions, text="Cancel conversion", command=self.cancel_conversion, state="disabled")
+        self.cancel_button = ttk.Button(actions, text="Cancel", style="Danger.TButton", command=self.cancel_conversion, state="disabled")
         self.cancel_button.pack(side="left", padx=(8, 0))
-        ttk.Button(actions, text="Manage selection…", command=self.manage_selected_images).pack(side="left", padx=(8, 0))
+        ttk.Button(actions, text="Manage selection…", command=self.manage_selected_images).pack(side="left", padx=(12, 0))
         self.scan_button = ttk.Button(actions, text="Scan source", command=self.scan_source)
         self.scan_button.pack(side="left", padx=(8, 0))
-        ttk.Button(actions, text="Open outputs", command=lambda: self.open_folder(self.output_var.get())).pack(side="left", padx=(8, 0))
-        ttk.Button(actions, text="Open logs", command=lambda: self.open_folder(str(LOG_DIR))).pack(side="left", padx=(8, 0))
+        ttk.Button(actions, text="Open outputs", command=lambda: self.open_folder(self.output_var.get())).pack(side="right", padx=(8, 0))
+        ttk.Button(actions, text="Open logs", command=lambda: self.open_folder(str(LOG_DIR))).pack(side="right", padx=(8, 0))
         ttk.Button(actions, text="Save settings", command=self.save_current_settings).pack(side="right")
 
-        progress_frame = ttk.Frame(outer)
-        progress_frame.pack(fill="x", pady=(0, 8))
-        ttk.Label(progress_frame, textvariable=self.status_var).pack(anchor="w")
-        self.progress = ttk.Progressbar(progress_frame, maximum=100, variable=self.progress_var, mode="determinate")
-        self.progress.pack(fill="x", pady=(6, 2))
-        ttk.Label(progress_frame, textvariable=self.progress_detail_var).pack(anchor="e")
-        ttk.Label(progress_frame, textvariable=self.counts_var).pack(anchor="w")
+        progress_card = ttk.LabelFrame(outer, text="  CONVERSION PROGRESS  ", padding=(12, 6), style="Card.TLabelframe")
+        progress_card.pack(fill="x", pady=(0, 8))
+        progress_card.columnconfigure(0, weight=1)
+        ttk.Label(progress_card, textvariable=self.status_var, style="Status.TLabel", wraplength=970).grid(row=0, column=0, sticky="w")
+        ttk.Label(progress_card, textvariable=self.progress_detail_var, style="Accent.TLabel").grid(row=0, column=1, sticky="e", padx=(12, 0))
+        self.progress = ttk.Progressbar(progress_card, maximum=100, variable=self.progress_var, mode="determinate", style="Horizontal.TProgressbar")
+        self.progress.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5, 4))
+        ttk.Label(progress_card, textvariable=self.counts_var, style="Muted.TLabel").grid(row=2, column=0, columnspan=2, sticky="w")
 
-        log_frame = ttk.LabelFrame(outer, text="Activity", padding=8)
+        log_frame = ttk.LabelFrame(outer, text="  ACTIVITY LOG  ", padding=(8, 6), style="Card.TLabelframe")
         log_frame.pack(fill="both", expand=True)
-        text_bg, text_fg, select_bg = getattr(self, "text_colors", ("white", "black", "#316ac5"))
+        log_frame.columnconfigure(0, weight=1)
+        log_frame.rowconfigure(0, weight=1)
+        text_bg, text_fg, select_bg = self.text_colors
         self.log_text = tk.Text(
-            log_frame, wrap="word", height=12, state="disabled", font=("Consolas", 9),
+            log_frame, wrap="word", height=7, state="disabled", font=("Cascadia Mono", 9),
             background=text_bg, foreground=text_fg, insertbackground=text_fg,
-            selectbackground=select_bg, borderwidth=1, relief="solid",
+            selectbackground=select_bg, borderwidth=0, relief="flat", padx=10, pady=8,
+            highlightthickness=1, highlightbackground=colors["border"], highlightcolor=colors["accent"],
         )
         scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=scrollbar.set)
-        self.log_text.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        self.log_text.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
         self._append_log(f"IconMaker {VERSION} ready.")
-        self._append_log("Supported formats: PNG, JPG, JPEG, WEBP, BMP, GIF, TIF, TIFF.")
+        self._append_log("Supports PNG, JPG, JPEG, WEBP, BMP, GIF, TIF, and TIFF.")
+
+    def _refresh_overview(self):
+        """Refresh the compact overview panel when source/options are changed."""
+        if not hasattr(self, "mode_summary_var"):
+            return
+        if self.selected_files:
+            self.mode_summary_var.set(f"Selected files · {len(self.selected_files)}")
+        else:
+            self.mode_summary_var.set("Folder + subfolders")
+        sizes = sorted(size for size, variable in self.size_vars.items() if variable.get())
+        if sizes:
+            if len(sizes) == len(AVAILABLE_ICON_SIZES):
+                size_text = f"ICO · all {len(sizes)} sizes"
+            else:
+                size_text = f"ICO · {len(sizes)} size(s)"
+            self.size_summary_var.set(size_text)
+        else:
+            self.size_summary_var.set("Select at least one size")
 
     def _append_log(self, message: str):
         self.log_text.configure(state="normal")
@@ -899,6 +999,8 @@ class IconMakerGUI:
             self.selected_files = []
             self.selection_var.set("Folder mode: supported images in folders and subfolders. Use Scan source to count them.")
             self.selection_scan_var.set("")
+            self.scan_summary_var.set("Not scanned yet")
+            self._refresh_overview()
             self.save_current_settings(quiet=True)
 
     def browse_files(self):
@@ -918,6 +1020,8 @@ class IconMakerGUI:
             self.selected_files = list(dict.fromkeys(str(Path(item).resolve()) for item in files))
             self.selection_var.set(f"Individual-file mode: {len(self.selected_files)} file(s) selected.")
             self.selection_scan_var.set(f"{len(self.selected_files)} selected file(s). Use Manage selection to preview or remove files.")
+            self.scan_summary_var.set(f"{len(self.selected_files)} selected file(s)")
+            self._refresh_overview()
 
     def browse_output(self):
         from tkinter import filedialog
@@ -1078,6 +1182,8 @@ class IconMakerGUI:
                 else "Folder mode: supported images in the input folder and subfolders will be converted."
             )
             self.selection_scan_var.set(f"{len(self.selected_files)} selected file(s)." if self.selected_files else "No individual files selected.")
+            self.scan_summary_var.set(f"{len(self.selected_files)} selected file(s)" if self.selected_files else "Not scanned yet")
+            self._refresh_overview()
 
         def show_preview(_event=None):
             indices = listbox.curselection()
@@ -1178,16 +1284,26 @@ class IconMakerGUI:
         window.title(f"About {APP_NAME}")
         window.resizable(False, False)
         window.transient(self.root)
-        frame = ttk.Frame(window, padding=22)
+        frame = ttk.Frame(window, padding=24, style="App.TFrame")
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text=APP_NAME, font=("Segoe UI", 18, "bold")).pack()
-        ttk.Label(frame, text=f"Version {VERSION}").pack(pady=(2, 12))
-        ttk.Label(frame, text="Batch image-to-ICO converter").pack()
-        ttk.Label(frame, text="Made by The Pirate Dylan", font=("Segoe UI", 10, "bold")).pack(pady=(12, 4))
-        ttk.Label(frame, text="Open-source software released under the MIT License").pack()
-        ttk.Button(frame, text="Open GitHub repository", command=lambda: webbrowser.open(GITHUB_REPOSITORY)).pack(fill="x", pady=(16, 6))
-        ttk.Button(frame, text="Report a bug", command=lambda: webbrowser.open(f"{GITHUB_REPOSITORY}/issues/new")).pack(fill="x", pady=4)
-        ttk.Button(frame, text="Close", command=window.destroy).pack(pady=(10, 0))
+        card = ttk.Frame(frame, padding=20, style="Header.TFrame")
+        card.pack(fill="both", expand=True)
+        try:
+            logo_source = tk.PhotoImage(file=str(APP_ICON_PNG))
+            scale = max(1, (max(logo_source.width(), logo_source.height()) + 95) // 96)
+            logo = logo_source.subsample(scale, scale)
+            ttk.Label(card, image=logo, style="Header.Icon.TLabel").pack(pady=(0, 8))
+            window._iconmaker_about_logo = logo
+        except Exception:
+            pass
+        ttk.Label(card, text=APP_NAME, style="Header.Title.TLabel", font=("Segoe UI", 20, "bold")).pack()
+        ttk.Label(card, text=f"Version {VERSION}", style="Header.Credit.TLabel").pack(pady=(3, 12))
+        ttk.Label(card, text="Batch image-to-ICO converter", style="Header.Subtitle.TLabel").pack()
+        ttk.Label(card, text="Made by The Pirate Dylan", style="Header.Credit.TLabel").pack(pady=(12, 4))
+        ttk.Label(card, text="Open-source software released under the MIT License", style="Header.Subtitle.TLabel").pack()
+        ttk.Button(card, text="Open GitHub repository", style="Primary.TButton", command=lambda: webbrowser.open(GITHUB_REPOSITORY)).pack(fill="x", pady=(18, 6))
+        ttk.Button(card, text="Report a bug", command=lambda: webbrowser.open(f"{GITHUB_REPOSITORY}/issues/new")).pack(fill="x", pady=4)
+        ttk.Button(card, text="Close", command=window.destroy).pack(pady=(10, 0))
         window.update_idletasks()
         window.geometry(f"{window.winfo_reqwidth()}x{window.winfo_reqheight()}")
 
@@ -1220,6 +1336,7 @@ class IconMakerGUI:
                     data = json.loads(message)
                     if data.get("error"):
                         self.selection_scan_var.set("Source scan failed. See the Activity panel.")
+                        self.scan_summary_var.set("Scan failed")
                         self._append_log(f"[ERROR] Source scan failed: {data['error']}")
                         messagebox.showerror("Source scan failed", data["error"])
                     else:
@@ -1228,6 +1345,8 @@ class IconMakerGUI:
                         label = (f"{count} supported selected image(s) found." if mode == "selected"
                                  else f"{count} supported image(s) found in the folder and subfolders.")
                         self.selection_scan_var.set(label)
+                        self.scan_summary_var.set(f"{count} supported image(s)")
+                        self._refresh_overview()
                         self._append_log(f"[INFO] Source scan found {count} supported image(s).")
                 elif kind == "fatal":
                     self._append_log(f"[ERROR] {message}")
