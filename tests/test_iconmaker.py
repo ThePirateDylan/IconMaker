@@ -62,7 +62,9 @@ class IconMakerCoreTests(unittest.TestCase):
         project_root = Path(app.__file__).resolve().parent
         workflow = (project_root / ".github" / "workflows" / "build-windows-exe.yml").read_text(encoding="utf-8")
         self.assertIn("--icon=assets/iconmaker.ico", workflow)
-        self.assertIn("--set-icon $iconPath", workflow)
+        self.assertIn('"--set-icon", $iconPath', workflow)
+        self.assertIn("Verify embedded Windows icon resources", workflow)
+        self.assertIn("pefile.PE", workflow)
         self.assertIn("assets/iconmaker.png;assets", workflow)
         self.assertTrue((project_root / "assets" / "iconmaker.png").is_file())
 
