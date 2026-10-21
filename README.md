@@ -7,6 +7,7 @@ IconMaker 1.4.0 is a hobby project by ThePirateDylan. Features a branded header,
 ## Download for Windows
 
 For normal use, download **`IconMaker.exe`** from the [latest GitHub Release](https://github.com/ThePirateDylan/IconMaker/releases/latest).
+
 It is recommended to place it inside of a IconMaker folder.
 
 - The standalone executable bundles Python and Pillow; no separate Python or Pillow installation is required.
