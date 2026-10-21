@@ -2,11 +2,12 @@
 
 **A Windows utility for converting images into multi-size Windows icon (`.ico`) files.**
 
-IconMaker 1.4.0 is a hobby project by ThePirateDylan. Its Modern Windows interface features a branded header, source/destination controls, side-by-side conversion settings and live batch preview, clear primary actions, a progress panel, and activity log. It also provides folder and individual-image workflows, persistent settings, conversion progress and cancellation, image preview, selectable themes, diagnostic logs, and an optional GitHub update checker.
+IconMaker 1.4.0 is a hobby project by ThePirateDylan. Features a branded header, source/destination controls, side-by-side conversion settings and live batch preview, clear primary actions, a progress panel, and activity log. It also provides folder and individual-image workflows, persistent settings, conversion progress and cancellation, image preview, selectable themes, diagnostic logs, and an optional GitHub update checker.
 
 ## Download for Windows
 
 For normal use, download **`IconMaker.exe`** from the [latest GitHub Release](https://github.com/ThePirateDylan/IconMaker/releases/latest).
+It is recommended to place it inside of a IconMaker folder.
 
 - The standalone executable bundles Python and Pillow; no separate Python or Pillow installation is required.
 - No `.bat` launcher or separate command window is required for normal use. `Run_IconMaker.bat` is an optional source/developer launcher; running the Python source directly requires Python and Pillow.
