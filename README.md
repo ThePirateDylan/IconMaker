@@ -2,7 +2,7 @@
 
 **A Windows utility for converting images into multi-size Windows icon (`.ico`) files.**
 
-IconMaker 1.4.0 is a hobby project by ThePirateDylan. Its Modern Windows interface (Option A) features a branded header, source/destination controls, side-by-side conversion settings and live batch preview, clear primary actions, a progress panel, and activity log. The creator credit is displayed exactly as **ThePirateDylan**, with no spaces. It also provides folder and individual-image workflows, persistent settings, conversion progress and cancellation, image preview, selectable themes, diagnostic logs, and an optional GitHub update checker.
+IconMaker 1.4.0 is a hobby project by ThePirateDylan. Its Modern Windows interface features a branded header, source/destination controls, side-by-side conversion settings and live batch preview, clear primary actions, a progress panel, and activity log. It also provides folder and individual-image workflows, persistent settings, conversion progress and cancellation, image preview, selectable themes, diagnostic logs, and an optional GitHub update checker.
 
 ## Download for Windows
 
@@ -91,17 +91,6 @@ Open **Settings → Diagnostic Output…** inside the application to view:
 
 You can also open **Settings → Open Logs Folder** or **Settings → Open Crash Reports Folder**. Logs may contain local file paths or filenames, so inspect them and remove personal information before sharing a report publicly.
 
-## Developer Build
-
-The repository includes a GitHub Actions workflow at `.github/workflows/build-windows-exe.yml`. It builds a one-file, windowed Windows executable on a GitHub-hosted Windows runner.
-
-- **Manual build:** open the repository's **Actions** tab, select **Build IconMaker Windows EXE**, and choose **Run workflow**. Download `IconMaker-Windows-EXE` from the completed workflow run's Artifacts section.
-- **Release build:** push a version tag such as `v1.4.0`. The workflow runs syntax checks and automated tests, builds `IconMaker.exe` with the custom ICO and Windows version metadata embedded directly by PyInstaller, verifies the PE icon resources and then runs `IconMaker.exe --self-test` to verify the packaged Pillow and Tkinter runtime before publishing the artifact.
-- **Local source run:** install Python 3.10 or newer, install dependencies with `python -m pip install -r requirements.txt`, then run `python convert_icons.py`.
-- **Local tests:** run `python -m unittest discover -v`.
-
-The packaged executable is built with PyInstaller. Python and Pillow are not required to be installed on a user's Windows PC when using the released executable.
-
 ## Folder and File Reference
 
 - `convert_icons.py` — conversion engine, GUI, updater, and application logic.
@@ -116,7 +105,6 @@ The packaged executable is built with PyInstaller. Python and Pillow are not req
 - `crashlog/` — unexpected application startup/crash reports.
 - `settings.json` — saved preferences, created at runtime.
 - `CHANGELOG.md` — version history.
-- `DEVELOPMENT_CHECKLIST.md` — implementation and verification checklist for 1.4.0.
 - `LICENSE` — MIT License.
 - `.github/workflows/build-windows-exe.yml` — automated Windows executable build, test, and release workflow.
 
